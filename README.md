@@ -15,8 +15,8 @@
 
 1. **Clone the Repository**:
 ```shell
-        git clone https://github.com/ysjayit/document-processor-app.git
-        cd document-processor-app
+git clone https://github.com/ysjayit/document-processor-app.git
+cd document-processor-app
 ```
 2. **Create and Activate a Virtual Environment (optional but recommended)**:
 If virtualenv is not installed yet, you can install it via pip:
@@ -38,7 +38,7 @@ source [ENVIRONMENT NAME]/bin/activate
 ```
 3. **Install Dependencies**:
 ```shell
-    pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 
 ## Usage
