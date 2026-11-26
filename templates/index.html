@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Document Processor</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1c1f23; --muted:#6b7280; --line:#d9dde3; --accent:#2563eb; --err:#b91c1c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14161a; --card:#1d2026; --text:#e8eaed; --muted:#9aa1ac; --line:#333943; --accent:#60a5fa; --err:#f87171; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:24px 16px; background:var(--bg); color:var(--text);
+         font:16px/1.5 system-ui, sans-serif; }
+  main { max-width:640px; margin:0 auto; }
+  h1 { font-size:1.5rem; margin:0 0 16px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  h2 { font-size:1.1rem; margin:0 0 4px; }
+  p.hint { color:var(--muted); margin:0 0 12px; font-size:.9rem; }
+  button, input[type=text] { font:inherit; }
+  button { cursor:pointer; border:1px solid var(--line); background:var(--card); color:var(--text);
+           border-radius:6px; padding:6px 10px; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; padding:8px 16px; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  input[type=text] { width:100%; padding:8px; border:1px solid var(--line); border-radius:6px;
+                     background:var(--bg); color:var(--text); margin:8px 0; }
+  ul { list-style:none; margin:12px 0; padding:0; }
+  li { display:flex; align-items:center; gap:8px; padding:8px; border:1px solid var(--line);
+       border-radius:6px; margin-bottom:6px; background:var(--bg); }
+  li.drag-over { border-color:var(--accent); }
+  li.dragging { opacity:.4; }
+  .handle { cursor:grab; color:var(--muted); user-select:none; }
+  .num { color:var(--muted); min-width:1.5em; }
+  .name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .msg { min-height:1.4em; margin-top:8px; font-size:.9rem; }
+  .msg.err { color:var(--err); }
+  .msg.ok { color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Document Processor</h1>
+
+  <section aria-labelledby="merge-h">
+    <h2 id="merge-h">Merge PDFs</h2>
+    <p class="hint">Add files, then drag (⠿) or use ↑ ↓ to set the order. Files merge top to bottom.</p>
+    <input type="file" id="merge-input" accept="application/pdf,.pdf" multiple>
+    <ul id="file-list"></ul>
+    <button class="primary" id="merge-btn" disabled>Merge &amp; download</button>
+    <div class="msg" id="merge-msg" role="status"></div>
+  </section>
+
+  <section aria-labelledby="title-h">
+    <h2 id="title-h">Change PDF title</h2>
+    <p class="hint">Updates the document title; other metadata is kept.</p>
+    <input type="file" id="title-file" accept="application/pdf,.pdf">
+    <input type="text" id="title-text" placeholder="New title" aria-label="New title">
+    <button class="primary" id="title-btn">Update &amp; download</button>
+    <div class="msg" id="title-msg" role="status"></div>
+  </section>
+</main>
+
+<script>
+(function () {
+  var files = [];            // ordered File objects for the merge form
+  var dragFrom = null;
+
+  var list = document.getElementById('file-list');
+  var mergeInput = document.getElementById('merge-input');
+  var mergeBtn = document.getElementById('merge-btn');
+  var mergeMsg = document.getElementById('merge-msg');
+
+  function setMsg(el, text, isErr) {
+    el.textContent = text || '';
+    el.className = 'msg ' + (isErr ? 'err' : 'ok');
+  }
+
+  function move(from, to) {
+    if (to < 0 || to >= files.length || from === to) return;
+    files.splice(to, 0, files.splice(from, 1)[0]);
+    render();
+  }
+
+  function btn(label, title, onClick, disabled) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.textContent = label; b.title = title; b.setAttribute('aria-label', title);
+    b.disabled = !!disabled; b.onclick = onClick;
+    return b;
+  }
+
+  function render() {
+    list.innerHTML = '';
+    files.forEach(function (f, i) {
+      var li = document.createElement('li');
+      li.draggable = true;
+
+      var handle = document.createElement('span');
+      handle.className = 'handle'; handle.textContent = '⠿'; handle.setAttribute('aria-hidden', 'true');
+      var num = document.createElement('span'); num.className = 'num'; num.textContent = (i + 1) + '.';
+      var name = document.createElement('span'); name.className = 'name'; name.textContent = f.name; name.title = f.name;
+
+      li.append(handle, num, name,
+        btn('↑', 'Move up', function () { move(i, i - 1); }, i === 0),
+        btn('↓', 'Move down', function () { move(i, i + 1); }, i === files.length - 1),
+        btn('✕', 'Remove', function () { files.splice(i, 1); render(); }));
+
+      li.addEventListener('dragstart', function (e) {
+        dragFrom = i; li.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(i)); // required by Firefox
+      });
+      li.addEventListener('dragend', function () { dragFrom = null; li.classList.remove('dragging'); });
+      li.addEventListener('dragover', function (e) { e.preventDefault(); li.classList.add('drag-over'); });
+      li.addEventListener('dragleave', function () { li.classList.remove('drag-over'); });
+      li.addEventListener('drop', function (e) {
+        e.preventDefault();
+        li.classList.remove('drag-over');
+        if (dragFrom !== null) move(dragFrom, i);
+      });
+      list.appendChild(li);
+    });
+    mergeBtn.disabled = files.length < 2;
+  }
+
+  mergeInput.addEventListener('change', function () {
+    Array.prototype.forEach.call(mergeInput.files, function (f) { files.push(f); });
+    mergeInput.value = '';  // allow re-adding the same file later
+    setMsg(mergeMsg, '');
+    render();
+  });
+
+  function download(blob, filename) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  // POST form data, download the PDF response or show the JSON error.
+  function submit(url, formData, filename, msgEl, button) {
+    button.disabled = true;
+    setMsg(msgEl, 'Working…');
+    return fetch(url, { method: 'POST', body: formData })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.json().then(function (j) { throw new Error(j.error || 'Request failed.'); },
+                                 function () { throw new Error('Request failed (' + res.status + ').'); });
+        }
+        return res.blob();
+      })
+      .then(function (blob) { download(blob, filename); setMsg(msgEl, 'Done — download started.'); })
+      .catch(function (err) { setMsg(msgEl, err.message, true); })
+      .then(function () { button.disabled = false; render(); });
+  }
+
+  mergeBtn.addEventListener('click', function () {
+    var fd = new FormData();
+    files.forEach(function (f) { fd.append('files', f, f.name); });  // list order = merge order
+    submit('/merge', fd, 'merged.pdf', mergeMsg, mergeBtn);
+  });
+
+  var titleBtn = document.getElementById('title-btn');
+  titleBtn.addEventListener('click', function () {
+    var file = document.getElementById('title-file').files[0];
+    var msg = document.getElementById('title-msg');
+    var text = document.getElementById('title-text').value;
+    if (!file) return setMsg(msg, 'Select a .pdf file.', true);
+    if (!text.trim()) return setMsg(msg, 'Enter a title.', true);
+    var fd = new FormData();
+    fd.append('file', file, file.name);
+    fd.append('title', text);
+    submit('/title', fd, file.name, msg, titleBtn);
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

@@ -4,12 +4,27 @@
 
 ## Features
 
-- **PDF Merging**: Combine multiple PDF files into a single PDF document.
+- **PDF Merging**: Combine multiple PDF files into a single PDF document, with an easy way to reorder them (web UI).
+- **Change PDF Title**: Update a PDF's title while keeping its other metadata.
+
+## Quick Start (Web UI)
+
+You only need Python 3 installed. One step sets everything up and opens the app in your browser at `http://127.0.0.1:5000`:
+
+- Linux / Mac:
+```shell
+./run.sh
+```
+- Windows: double-click `run.bat` (or run it from a terminal).
+
+In the **Merge PDFs** section, add your files, then drag them (⠿) or use the ↑ / ↓ buttons to set the order. Click **Merge & download**. Use **Change PDF title** to update a PDF's title.
+
+Files are processed in memory and are never stored on the server. The app listens on localhost only.
 
 ## Requirements
 
-- Python 3.6 or higher
-- `PyPDF2` library for PDF manipulation
+- Python 3.9 or higher
+- `pypdf` for PDF manipulation and `Flask` for the web UI (both installed by `requirements.txt`)
 
 ## Installation
 
@@ -41,7 +56,12 @@ source [ENVIRONMENT NAME]/bin/activate
 pip install -r requirements.txt
 ```
 
-## Usage
+## Usage (command line)
+`pdf_tools.py` holds the shared logic. The scripts below are optional CLI wrappers; edit the constants at the top of each file.
+
+To change a PDF's title, set `input_pdf`, `output_pdf` and `new_title` in `change_pdf_title.py`, then run `python change_pdf_title.py`.
+
+To merge:
 1. Insert the pdf files in to assets directory in project
 2. **Update the `documents` List**:
    - Open the `app.py` file.

@@ -1,6 +1,7 @@
-from pypdf import PdfWriter
-from datetime import datetime
 import os
+from datetime import datetime
+
+from pdf_tools import merge_pdfs
 
 documents = [
     '01-sample-document.pdf',
@@ -11,32 +12,26 @@ documents = [
 assets_dir = 'assets/'
 output_dir = 'assets/outputs/'
 
-merger = PdfWriter()
 
-def merge_pdfs(documents, assets_dir, output_dir):
-    # Ensure output directory exists
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+def run(documents, assets_dir, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
 
-    # Append each PDF to the merger object
+    paths = []
     for pdf in documents:
         pdf_path = os.path.join(assets_dir, pdf)
         if os.path.isfile(pdf_path):
-            merger.append(pdf_path)
+            paths.append(pdf_path)
             print(f"Added: {pdf_path}")
         else:
             print(f"Warning: {pdf_path} does not exist and will be skipped.")
 
-    # Generate the output filename with a timestamp
-    now = datetime.now()
-    timestamp_str = now.strftime('%Y%m%d_%H%M%S')
-    output_filename = f"merged-file-{timestamp_str}.pdf"
-    output_path = os.path.join(output_dir, output_filename)
+    timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+    output_path = os.path.join(output_dir, f"merged-file-{timestamp_str}.pdf")
 
-    # Write the merged PDF to the output directory
-    merger.write(output_path)
-    merger.close()
+    with open(output_path, "wb") as f:
+        f.write(merge_pdfs(paths).read())
     print(f"PDFs merged successfully into: {output_path}")
 
-# Run the PDF merging function
-merge_pdfs(documents, assets_dir, output_dir)
+
+if __name__ == "__main__":
+    run(documents, assets_dir, output_dir)
